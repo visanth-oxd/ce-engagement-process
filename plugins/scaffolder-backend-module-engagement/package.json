@@ -1,0 +1,11 @@
+{
+  "name": "@internal/plugin-scaffolder-backend-module-engagement",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "backstage": { "role": "backend-plugin-module", "pluginId": "scaffolder", "pluginPackage": "@backstage/plugin-scaffolder-backend" },
+  "dependencies": {
+    "@backstage/backend-plugin-api": "^1.0.0",
+    "@backstage/plugin-scaffolder-node": "^0.5.0",
+    "@backstage/plugin-notifications-node": "^0.2.0"
+  }
+}

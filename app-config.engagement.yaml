@@ -1,0 +1,48 @@
+# Merge into your app-config.yaml (or include as an extra config file).
+
+engagement:
+  jira:
+    baseUrl: https://your-jira.atlassian.net   # PLACEHOLDER — see PLACEHOLDERS.md
+    token: ${JIRA_API_TOKEN}
+    impactAssessment:
+      issueType: Task            # Jira issue type cut for each impact assessment
+      labelPrefix: engagement-ia # deterministic label used for idempotency
+  registry:
+    # Bot-PR target for stage mirroring. Omit this whole block in local
+    # file-based dev — the sync then logs stage changes without writing.
+    owner: your-org              # PLACEHOLDER — see PLACEHOLDERS.md
+    repo: engagement-registry
+    branch: main
+    token: ${GITHUB_REGISTRY_TOKEN}  # needs contents:write + pull_requests:write
+    # apiBaseUrl: https://github.your-company.com/api/v3   # GHE only
+  slack:
+    webhookUrl: ${SLACK_ENGAGEMENT_WEBHOOK}   # optional mirror to #ce-engagement-intake
+
+catalog:
+  rules:
+    # Allow the custom kind alongside the defaults you already permit.
+    - allow:
+        [
+          Component,
+          API,
+          Resource,
+          Group,
+          User,
+          Template,
+          Location,
+          System,
+          Domain,
+          Engagement,
+        ]
+  locations:
+    - type: file
+      target: ../../catalog/groups.yaml
+    - type: file
+      target: ../../catalog/environments.yaml
+    - type: file
+      target: ../../templates/inbound-engagement/template.yaml
+      rules:
+        - allow: [Template]
+    # Production: point at the engagement-registry repo instead of files.
+    # - type: url
+    #   target: https://github.com/your-org/engagement-registry/blob/main/engagements/*/catalog-info.yaml

@@ -1,0 +1,234 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: inbound-engagement-request
+  title: Submit Inbound Engagement Request
+  description: >
+    Self-service intake for new inbound engagements. Creates the Jira ticket on
+    the Unplanned board, registers the Engagement in the catalog, and notifies
+    the CE TPOs for internal review ahead of weekly triage.
+  tags:
+    - engagement
+    - intake
+    - process
+spec:
+  owner: group:default/ce-tpo
+  type: engagement
+
+  parameters:
+    # ── Gate 0: route bypass attempts away before they become tickets ──────
+    - title: Before you start
+      description: >
+        These questions route your request to the right process. Answering
+        them honestly saves you a week — misrouted tickets are closed at
+        triage and re-presented.
+      required: [requestNature]
+      properties:
+        requestNature:
+          title: What best describes this request?
+          type: string
+          enum:
+            - new-engagement
+            - existing-engagement-change
+            - defect
+          enumNames:
+            - "Genuinely new work — no existing engagement covers it"
+            - "A change to an engagement already in flight"
+            - "A bug / defect related to ongoing or delivered work"
+      dependencies:
+        requestNature:
+          oneOf:
+            - properties:
+                requestNature:
+                  const: defect
+                defectRedirect:
+                  title: This belongs in Defect Management
+                  type: string
+                  description: >
+                    Defects are not triaged through the engagement process.
+                    Raise it via the Defect Management process instead:
+                    https://your-confluence/defect-management — submitting it
+                    here will result in closure at internal review.
+                  enum: ["I understand — take me back"]
+            - properties:
+                requestNature:
+                  const: existing-engagement-change
+                parentEngagement:
+                  title: Which engagement?
+                  type: string
+                  description: Link the existing Engagement entity this change belongs to.
+                  ui:field: EntityPicker
+                  ui:options:
+                    catalogFilter:
+                      kind: Engagement
+            - properties:
+                requestNature:
+                  const: new-engagement
+
+    # ── Engagement details ────────────────────────────────────────────────
+    - title: Engagement Details
+      required: [name, clientName, summary, requestedBy, requestedDate]
+      properties:
+        name:
+          title: Engagement ID
+          type: string
+          description: Short unique identifier (lowercase, hyphens), e.g. acme-payments-q3
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          maxLength: 50
+        clientName:
+          title: Client / Requesting Party
+          type: string
+        summary:
+          title: Summary of the change
+          type: string
+          description: What is being asked for, and why now?
+          ui:widget: textarea
+          ui:options:
+            rows: 5
+        requestedBy:
+          title: Requesting User
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: User
+        requestedDate:
+          title: Requested Delivery Date
+          type: string
+          format: date
+        businessJustification:
+          title: Business Justification
+          type: string
+          ui:widget: textarea
+          ui:options:
+            rows: 3
+
+    # ── Impact declaration — seeds the IA fan-out ─────────────────────────
+    - title: Suspected Impact
+      description: >
+        Best-effort guess. Triage will confirm, but a good guess here means
+        Impact Assessments go out the same day instead of next week.
+      required: [suspectedImpactedTeams]
+      properties:
+        suspectedImpactedTeams:
+          title: Suspected Impacted Teams
+          type: array
+          minItems: 1
+          ui:field: MultiEntityPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+              spec.type: delivery-team
+        suspectedEnvironments:
+          title: Environments likely needed
+          type: array
+          items:
+            type: string
+            enum: [BLD, INT, PRE]
+          uniqueItems: true
+          ui:widget: checkboxes
+        nftRequired:
+          title: Non-functional testing expected?
+          type: boolean
+          default: false
+
+  steps:
+    # Hard stop for defects — belt and braces on top of the form gate.
+    - id: guard-defect
+      name: Route defects away
+      if: ${{ parameters.requestNature === 'defect' }}
+      action: debug:log
+      input:
+        message: Defect routed to Defect Management. No engagement created.
+
+    - id: create-jira
+      name: Create ticket on the Unplanned board
+      if: ${{ parameters.requestNature !== 'defect' }}
+      action: engagement:jira:create
+      input:
+        projectKey: UNPL
+        issueType: Engagement Request
+        summary: '[${{ parameters.clientName }}] ${{ parameters.name }}'
+        description: |
+          ${{ parameters.summary }}
+
+          *Business justification:* ${{ parameters.businessJustification }}
+          *Requested date:* ${{ parameters.requestedDate }}
+          *Nature:* ${{ parameters.requestNature }}
+          *Suspected impacted teams:* ${{ parameters.suspectedImpactedTeams }}
+          *Environments:* ${{ parameters.suspectedEnvironments }}
+          *NFT expected:* ${{ parameters.nftRequired }}
+
+          _Raised via Backstage intake — entity: engagement:default/${{ parameters.name }}_
+        labels:
+          - backstage-intake
+          - ${{ parameters.requestNature }}
+
+    - id: fetch-skeleton
+      name: Generate engagement entity + docs
+      if: ${{ parameters.requestNature !== 'defect' }}
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          clientName: ${{ parameters.clientName }}
+          summary: ${{ parameters.summary }}
+          requestedBy: ${{ parameters.requestedBy }}
+          requestedDate: ${{ parameters.requestedDate }}
+          requestNature: ${{ parameters.requestNature }}
+          parentEngagement: ${{ parameters.parentEngagement }}
+          impactedTeams: ${{ parameters.suspectedImpactedTeams }}
+          environments: ${{ parameters.suspectedEnvironments }}
+          nftRequired: ${{ parameters.nftRequired }}
+          jiraKey: ${{ steps['create-jira'].output.issueKey }}
+
+    - id: publish
+      name: Publish to engagement registry repo
+      if: ${{ parameters.requestNature !== 'defect' }}
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=your-org&repo=engagement-registry
+        branchName: engagement/${{ parameters.name }}
+        title: 'New engagement: ${{ parameters.name }}'
+        description: Auto-generated by the inbound engagement intake template.
+        targetPath: engagements/${{ parameters.name }}
+
+    - id: register
+      name: Register in catalog
+      if: ${{ parameters.requestNature !== 'defect' }}
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/engagements/${{ parameters.name }}/catalog-info.yaml'
+        optional: true
+
+    - id: notify-tpo
+      name: Notify CE TPOs for internal review
+      if: ${{ parameters.requestNature !== 'defect' }}
+      action: engagement:notify
+      input:
+        recipients: [group:default/ce-tpo]
+        severity: normal
+        title: 'New inbound engagement: ${{ parameters.name }}'
+        message: >
+          ${{ parameters.clientName }} — ${{ parameters.summary }}.
+          Jira: ${{ steps['create-jira'].output.issueKey }}.
+          Internal review required before next weekly triage.
+        slackChannel: '#ce-engagement-intake'
+
+  output:
+    links:
+      - title: Jira ticket (Unplanned board)
+        url: https://your-jira.atlassian.net/browse/${{ steps['create-jira'].output.issueKey }}
+      - title: Registry pull request
+        url: ${{ steps['publish'].output.remoteUrl }}
+    text:
+      - title: What happens next
+        content: |
+          1. **Internal review** — CE TPOs check completeness and routing (you'll be contacted if info is missing).
+          2. **Weekly triage** — request is presented; outcome is accept / more info / close & re-present.
+          3. **Impact assessments** — sent to the teams flagged above; you'll see them linked on the engagement page.
+          4. **Environment allocation & interlock** — BLD/INT/PRE allocated, release management informed.
+
+          Track it all here: `/catalog/default/engagement/${{ parameters.name }}`

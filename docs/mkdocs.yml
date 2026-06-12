@@ -1,0 +1,8 @@
+site_name: Inbound Engagement Process
+nav:
+  - Overview & Principles: index.md
+  - Process Flow: process.md
+  - RACI: raci.md
+  - Triage Operating Guide: triage.md
+plugins:
+  - techdocs-core

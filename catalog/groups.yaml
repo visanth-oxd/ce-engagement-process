@@ -1,0 +1,53 @@
+# RACI roles modeled as Groups. Stage ownership (Accountable) is encoded on
+# the Engagement entity / process docs; these groups are the routing targets
+# for notifications (Informed/Consulted) and ownership (Responsible).
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: ce-tpo
+  title: CE Technical Product Owners
+  description: Accountable for internal review and triage presentation of inbound engagements.
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: triage-board
+  title: Weekly Engagement Triage Board
+  description: Accountable for accept / request-info / close-and-re-present decisions.
+spec:
+  type: board
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: sre-run
+  title: SRE / Run
+  description: Responsible for environment allocation; Informed on all allocations.
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: nft
+  title: Non-Functional Test
+  description: Consulted on IAs where NFT is flagged; Informed on PRE allocation.
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: release-management
+  title: Release Management
+  description: Receives interlocked engagements for scheduling. Handoff boundary of this process.
+spec:
+  type: team
+  children: []

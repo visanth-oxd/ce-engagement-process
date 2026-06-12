@@ -1,0 +1,37 @@
+apiVersion: ce.your-org.io/v1alpha1
+kind: Engagement
+metadata:
+  name: ${{ values.name }}
+  title: '${{ values.clientName }} — ${{ values.name }}'
+  description: ${{ values.summary | dump }}
+  annotations:
+    jira/project-key: UNPL
+    jira/issue-key: ${{ values.jiraKey }}
+    backstage.io/techdocs-ref: dir:.
+  labels:
+    engagement-nature: ${{ values.requestNature }}
+  tags:
+    - engagement
+spec:
+  # Lifecycle state is MIRRORED from Jira by the EngagementJiraStatusProvider.
+  # Never hand-edit: Jira is the system of record for workflow state.
+  stage: submitted   # submitted | internal-review | triage | ia-in-progress | allocated | interlocked | closed
+  client: ${{ values.clientName | dump }}
+  requestedBy: ${{ values.requestedBy }}
+  requestedDate: ${{ values.requestedDate }}
+  nftRequired: ${{ values.nftRequired }}
+  owner: group:default/ce-tpo
+  {%- if values.parentEngagement %}
+  parent: ${{ values.parentEngagement }}
+  {%- endif %}
+  impactAssessments:
+    {%- for team in values.impactedTeams %}
+    - team: ${{ team }}
+      status: pending          # pending | in-progress | complete
+      jiraKey: null            # filled when the IA sub-ticket is cut at triage
+    {%- endfor %}
+  environments:
+    {%- for env in values.environments %}
+    - resource: resource:default/${{ env | lower }}-environment
+      status: requested        # requested | allocated | released
+    {%- endfor %}

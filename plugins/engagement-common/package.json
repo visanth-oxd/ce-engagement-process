@@ -1,0 +1,10 @@
+{
+  "name": "@internal/plugin-engagement-common",
+  "version": "0.1.0",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "backstage": { "role": "common-library" },
+  "dependencies": {
+    "@backstage/catalog-model": "^1.7.0"
+  }
+}
