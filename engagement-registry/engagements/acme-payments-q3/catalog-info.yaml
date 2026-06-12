@@ -1,0 +1,32 @@
+apiVersion: ce.your-org.io/v1alpha1
+kind: Engagement
+metadata:
+  name: acme-payments-q3
+  title: ACME — Payments uplift Q3
+  description: Uplift of payment gateway to support delayed settlement for ACME retail rollout.
+  annotations:
+    jira/project-key: UNPL
+    jira/issue-key: UNPL-1042
+    backstage.io/techdocs-ref: dir:.
+  labels:
+    engagement-nature: new-engagement
+  tags: [engagement]
+spec:
+  stage: ia-in-progress
+  client: ACME Retail
+  requestedBy: user:default/jane.doe
+  requestedDate: '2026-08-14'
+  nftRequired: true
+  owner: group:default/ce-tpo
+  impactAssessments:
+    - team: group:default/payments-team
+      status: complete
+      jiraKey: UNPL-1043
+    - team: group:default/platform-team
+      status: in-progress
+      jiraKey: UNPL-1044
+  environments:
+    - resource: resource:default/int-environment
+      status: requested
+    - resource: resource:default/pre-environment
+      status: requested

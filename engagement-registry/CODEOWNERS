@@ -1,0 +1,4 @@
+# Intake PRs (new engagements) and sync PRs (stage mirrors) both land here.
+# CE TPO reviews everything by default — this is the internal-review gate.
+# PLACEHOLDER: replace with a real team once the org is set up, e.g.:
+# *  @your-org/ce-tpo

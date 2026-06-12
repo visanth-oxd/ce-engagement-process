@@ -1,0 +1,5 @@
+site_name: 'acme-payments-q3'
+nav:
+  - Overview: index.md
+plugins:
+  - techdocs-core
